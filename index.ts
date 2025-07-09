@@ -1,15 +1,13 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CreateMessageRequest,
-  CreateMessageResultSchema,
-  CallToolRequestSchema,
-  ListToolsRequestSchema
-} from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { exec } from "child_process";
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 const server = new Server(
   {
@@ -20,7 +18,6 @@ const server = new Server(
     capabilities: {
       tools: {},
       logging: {},
-      sampling: {}, // Enable sampling capability
     },
   }
 );
@@ -31,40 +28,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "two_step_plan",
-        description: "Create a plan for a task, then have another Claude instance critique and improve it",
+        description:
+          "Create a plan for a task, have another Claude instance critique and improve it, then have a third Claude instance choose the better plan",
         inputSchema: {
           type: "object",
           properties: {
-            task_description: { 
-              type: "string", 
-              description: "The task or project you need help planning" 
+            task_description: {
+              type: "string",
+              description: "The task or project you need help planning",
             },
-            context: { 
-              type: "string", 
-              description: "Additional context about existing codebase, constraints, or requirements" 
-            }
+            context: {
+              type: "string",
+              description:
+                "Additional context about existing codebase, constraints, or requirements",
+            },
           },
-          required: ["task_description"]
-        }
-      }
-    ]
+          required: ["task_description"],
+        },
+      },
+    ],
   };
 });
 
 // Tool handler
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "two_step_plan") {
-    const { task_description, context } = request.params.arguments;
-    
+    const { task_description, context } = request.params.arguments as {
+      task_description: string;
+      context: string;
+    };
+
     console.error("Two-step plan tool", { task_description, context });
-    
+
     try {
       // Step 1: Create initial plan
       const initialPlanPrompt = `You are helping to create a detailed implementation plan for the following task:
 
 Task: ${task_description}
 
-${context ? `Additional Context: ${context}` : ''}
+${context ? `Additional Context: ${context}` : ""}
 
 Please create a comprehensive, well-structured plan in markdown format. Include:
 - Clear objectives
@@ -76,53 +78,26 @@ Please create a comprehensive, well-structured plan in markdown format. Include:
 Be thorough and specific.`;
 
       console.error("Requesting initial plan from Claude...");
-      
-      const initialSamplingRequest: CreateMessageRequest = {
-        method: "sampling/createMessage",
-        params: {
-          messages: [
-            {
-              role: "user",
-              content: {
-                type: "text",
-                text: initialPlanPrompt,
-              },
-            },
-          ],
-          maxTokens: 2000,
-          temperature: 0.7,
-          modelPreferences: {
-            hints: [{ name: "claude-3-sonnet" }],
-            intelligencePriority: 0.8,
-            speedPriority: 0.5,
-            costPriority: 0.3,
-          },
-          includeContext: "thisServer",
-        },
-      };
 
-      const initialPlanResponse = await server.request(
-        initialSamplingRequest,
-        CreateMessageResultSchema
+      const { stdout: initialPlan } = await execAsync(
+        `claude -p '${initialPlanPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
       );
 
-      const initialPlan = initialPlanResponse.content.text;
-      
       // Save initial plan to file
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const planDir = path.join(os.tmpdir(), 'two-step-plan', 'plans');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const planDir = path.join(os.tmpdir(), "two-step-plan", "plans");
       await fs.mkdir(planDir, { recursive: true });
-      
+
       const initialPlanPath = path.join(planDir, `initial_plan_${timestamp}.md`);
       await fs.writeFile(initialPlanPath, `# Initial Plan\n\n${initialPlan}`);
-      
+
       console.error(`Initial plan saved to: ${initialPlanPath}`);
 
       // Step 2: Have another Claude critique the plan
       const critiquePrompt = `A previous agent created the following plan for this task:
 
 Task: ${task_description}
-${context ? `Context: ${context}` : ''}
+${context ? `Context: ${context}` : ""}
 
 PLAN:
 ${initialPlan}
@@ -136,84 +111,60 @@ Please review this plan in detail and:
 Be constructive but critical. Focus on making the plan simpler, more robust, and easier to implement.`;
 
       console.error("Requesting critique and improved plan from Claude...");
-      
-      const critiqueSamplingRequest: CreateMessageRequest = {
-        method: "sampling/createMessage",
-        params: {
-          messages: [
-            {
-              role: "user",
-              content: {
-                type: "text",
-                text: critiquePrompt,
-              },
-            },
-          ],
-          maxTokens: 2500,
-          temperature: 0.7,
-          modelPreferences: {
-            hints: [{ name: "claude-3-sonnet" }],
-            intelligencePriority: 0.9, // Higher intelligence for critique
-            speedPriority: 0.4,
-            costPriority: 0.2,
-          },
-          includeContext: "thisServer",
-        },
-      };
 
-      const improvedPlanResponse = await server.request(
-        critiqueSamplingRequest,
-        CreateMessageResultSchema
+      const { stdout: improvedPlan } = await execAsync(
+        `claude -p '${critiquePrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
       );
 
-      const improvedPlan = improvedPlanResponse.content.text;
-      
       // Save improved plan to file
       const improvedPlanPath = path.join(planDir, `improved_plan_${timestamp}.md`);
       await fs.writeFile(improvedPlanPath, `# Improved Plan\n\n${improvedPlan}`);
-      
+
       console.error(`Improved plan saved to: ${improvedPlanPath}`);
 
-      // Create a combined output
-      const combinedOutput = `# Two-Step Planning Process
+      // Step 3: Have Claude choose the better plan using claude -p and file operations
+      const selectionPrompt = `You need to choose the better plan between these two files for the following task:
 
-## Initial Plan
-${initialPlan}
+Task: ${task_description}
+${context ? `Context: ${context}` : ""}
 
----
+The two plans are saved in these files:
+- Plan A (Initial): ${initialPlanPath}
+- Plan B (Improved): ${improvedPlanPath}
 
-## Critique and Improved Plan
-${improvedPlan}
+Please:
+1. Read both plan files
+2. Analyze which plan is better based on:
+   - More practical and implementable
+   - Better balanced between thoroughness and simplicity
+   - More likely to succeed given the constraints
+3. Delete the file containing the inferior plan
+4. Respond with only the file path of the selected plan
 
----
+Instructions for file operations:
+- Use 'cat' to read the files
+- Use 'rm' to delete the non-selected file
+- Return only the path to the remaining file
 
-Plans saved to:
-- Initial: ${initialPlanPath}
-- Improved: ${improvedPlanPath}`;
+Example response format: /path/to/selected/plan.md`;
+
+      console.error("Requesting final plan selection from Claude...");
+
+      const { stdout: selectedPlanPath } = await execAsync(
+        `claude -p '${selectionPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
+      );
 
       return {
         content: [
           {
             type: "text",
-            text: combinedOutput,
+            text: `Selected plan saved to: ${selectedPlanPath.trim()}`,
           },
         ],
       };
     } catch (error) {
       console.error("Error in two-step plan tool:", error);
-      
-      // Check if it's a sampling not supported error
-      if (error instanceof Error && error.message.includes("sampling")) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Error: The MCP client does not support sampling. This tool requires a client with sampling capabilities (such as Claude Desktop with the latest version).",
-            },
-          ],
-        };
-      }
-      
+
       return {
         content: [
           {
@@ -224,7 +175,7 @@ Plans saved to:
       };
     }
   }
-  
+
   throw new Error(`Unknown tool: ${request.params.name}`);
 });
 

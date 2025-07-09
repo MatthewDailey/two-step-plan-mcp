@@ -1,27 +1,29 @@
 # Two-Step Plan MCP Server
 
-A [ModelContextProtocol](https://modelcontextprotocol.io) server that implements a two-step planning process inspired by the observation that having Claude critique its own plans often leads to better, simpler solutions.
+A [ModelContextProtocol](https://modelcontextprotocol.io) server that implements a three-step planning process inspired by the observation that having Claude critique its own plans often leads to better, simpler solutions.
 
 ## How it Works
 
 This MCP server provides a tool that:
-1. Uses Claude to create an initial detailed plan for a given task
-2. Has a second Claude instance critique the plan and provide an improved version
-3. Saves both plans to files and returns them to the user
+1. Uses Claude CLI to create an initial detailed plan for a given task
+2. Has a second Claude CLI instance critique the plan and provide an improved version
+3. Uses a third Claude CLI instance to read both plans, choose the better one, and delete the other
+4. Returns the file path to the selected plan
 
 The approach is based on the principle that "NewClaude generally is of the opinion that OldClaude was overengineering" - leading to simpler, more robust plans.
 
 ## Features
 
-- Two-step planning process using MCP sampling
-- Automatic file saving of plans with timestamps
+- Three-step planning process using only `claude -p` commands
+- Automatic file cleanup - only the selected plan remains
 - Support for additional context about existing codebases
-- Error handling for clients without sampling support
+- Final plan selection with automatic deletion of inferior plan
 
 ## Requirements
 
 - Node.js v18 or higher
-- An MCP client with sampling support (e.g., Claude Desktop with latest version)
+- Claude CLI tool installed and configured
+- An MCP client (e.g., Claude Desktop)
 
 ## Setup to build and run with Claude
 
@@ -79,10 +81,10 @@ The tool accepts two parameters:
 ## Output
 
 The tool will:
-1. Generate an initial plan
-2. Have another Claude instance critique and improve it
-3. Save both plans to timestamped files in your system's temp directory under `two-step-plan/plans/`
-4. Return both plans in the response for immediate viewing
+1. Generate an initial plan using Claude CLI
+2. Have another Claude CLI instance critique and improve it
+3. Use a third Claude CLI instance to read both plans, choose the better one, and delete the other
+4. Return the file path to the selected plan in your system's temp directory under `two-step-plan/plans/`
 
 ## Development
 
