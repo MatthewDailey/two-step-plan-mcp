@@ -1,6 +1,6 @@
 {
   "name": "two-step-plan",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MCP server that creates and critiques plans using two-step Claude evaluation",
   "type": "module",
   "scripts": {

@@ -12,14 +12,14 @@ This MCP server provides a tool that:
 4. Returns the file path to the selected plan
 
 
-## Install
+## Install MCP
 
 ```json
 {
   "mcpServers": {
     "two-step-plan": {
       "command": "npx",
-      "args": ["-y", "two-step-plan-mcp"]
+      "args": ["-y", "two-step-plan"]
     }
   }
 }
@@ -41,37 +41,13 @@ npm install -g two-step-plan
 
 2. Run the tool:
 ```bash
-two-step-plan "Your task description here"
+claude-plan "Your task description here"
 ```
 
 For example:
 ```bash
-two-step-plan "Design a REST API for a task management system"
+claude-plan "Design a REST API for a task management system"
 ```
-
-The tool will generate plans using Claude CLI, critique them, and select the best one. The final plan will be saved in your system's temp directory under `two-step-plan/plans/` and its contents will be displayed in the console.
-
-
-
-## Using the Tool
-
-Once configured, you can use the `two_step_plan` tool in Claude Desktop:
-
-```
-Use the two_step_plan tool to help me design a REST API for a task management system
-```
-
-The tool accepts two parameters:
-- `task_description` (required): The task or project you need help planning
-- `context` (optional): Additional context about existing codebase, constraints, or requirements
-
-## Output
-
-The tool will:
-1. Generate an initial plan using Claude CLI
-2. Have another Claude CLI instance critique and improve it
-3. Use a third Claude CLI instance to read both plans, choose the better one, and delete the other
-4. Return the file path to the selected plan in your system's temp directory under `two-step-plan/plans/`
 
 ## Development
 
