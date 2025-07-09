@@ -1,6 +1,7 @@
-# Two-Step Plan MCP Server
+# Two-Step Plan MCP
 
-A [ModelContextProtocol](https://modelcontextprotocol.io) server that implements a three-step planning process inspired by the observation that having Claude critique its own plans often leads to better, simpler solutions.
+I wanted to try the approach in this tweet so Claude wrote this code. https://x.com/JohnONolan/status/1942889686646521900
+
 
 ## How it Works
 
@@ -10,61 +11,47 @@ This MCP server provides a tool that:
 3. Uses a third Claude CLI instance to read both plans, choose the better one, and delete the other
 4. Returns the file path to the selected plan
 
-The approach is based on the principle that "NewClaude generally is of the opinion that OldClaude was overengineering" - leading to simpler, more robust plans.
 
-## Features
-
-- Three-step planning process using only `claude -p` commands
-- Automatic file cleanup - only the selected plan remains
-- Support for additional context about existing codebases
-- Final plan selection with automatic deletion of inferior plan
-
-## Requirements
-
-- Node.js v18 or higher
-- Claude CLI tool installed and configured
-- An MCP client (e.g., Claude Desktop)
-
-## Setup to build and run with Claude
-
-1. Download and install Claude desktop app from [claude.ai/download](https://claude.ai/download)
-
-2. Clone the repo, install dependencies and build:
-
-```bash
-npm install
-npm run build
-```
-
-3. Configure Claude to use this MCP server. If this is your first MCP server, in the root of this project run:
-
-```bash
-echo '{
-  "mcpServers": {
-    "two-step-plan": {
-      "command": "node",
-      "args": ["'$PWD'/dist/index.cjs"]
-    }
-  }
-}' > ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-This should result in an entry in your `claude_desktop_config.json` like:
+## Install
 
 ```json
-"mcpServers": {
-  "two-step-plan": {
-    "command": "node",
-    "args": ["/Users/yourname/code/two-step-plan/dist/index.cjs"]
+{
+  "mcpServers": {
+    "two-step-plan": {
+      "command": "npx",
+      "args": ["-y", "two-step-plan"]
+    }
   }
 }
 ```
 
-If you have existing MCP servers, add the `two-step-plan` block to your existing config. It's an important detail that the `args` is the path to `<path_to_repo_on_your_machine>/two-step-plan/dist/index.cjs`.
+## Requirements
 
-4. Restart Claude Desktop.
+- Node.js v18 or higher
+- Claude Code tool installed and configured
 
-5. Look for the hammer icon with the number of available tools in Claude's interface to confirm the server is running.
+## Using the Standalone Plan Tool
+
+You can use the plan tool directly without setting up the MCP server:
+
+1. Install globally:
+```bash
+npm install -g two-step-plan
+```
+
+2. Run the tool:
+```bash
+two-step-plan "Your task description here"
+```
+
+For example:
+```bash
+two-step-plan "Design a REST API for a task management system"
+```
+
+The tool will generate plans using Claude CLI, critique them, and select the best one. The final plan will be saved in your system's temp directory under `two-step-plan/plans/` and its contents will be displayed in the console.
+
+
 
 ## Using the Tool
 
@@ -111,41 +98,3 @@ npm run watch
 ```bash
 npm run inspect
 ```
-
-## Publishing
-
-To publish to npm:
-
-1. Update the version in `package.json`
-2. Run `npm publish`
-
-Users can then install globally:
-```bash
-npm install -g two-step-plan
-```
-
-And configure Claude Desktop to use the globally installed version:
-```json
-{
-  "mcpServers": {
-    "two-step-plan": {
-      "command": "npx",
-      "args": ["-y", "two-step-plan"]
-    }
-  }
-}
-```
-
-## How to create your own MCP tool
-
-This project is built from the [mcp-starter](https://github.com/claude-ai/mcp-starter) template. To create your own MCP tool:
-
-1. Clone the starter template
-2. Update `index.ts` with your tool implementation
-3. Use `server.tool()` to register new tools
-4. Enable additional capabilities like `sampling` if needed
-5. Follow the setup instructions above to test with Claude Desktop
-
-## Contributing
-
-This project demonstrates the use of MCP's sampling capability to create multi-agent workflows. Feel free to fork and extend it with your own planning strategies!

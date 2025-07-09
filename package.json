@@ -4,15 +4,16 @@
   "description": "MCP server that creates and critiques plans using two-step Claude evaluation",
   "type": "module",
   "scripts": {
-    "make-executable": "node -e \"fs.chmodSync('dist/index.cjs', '755');\" --require fs",
-    "build": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' && npm run make-executable",
-    "watch": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' --watch",
+    "make-executable": "node -e \"fs.chmodSync('dist/index.cjs', '755'); fs.chmodSync('dist/plan.cjs', '755');\" --require fs",
+    "build": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' && esbuild plan.ts --outfile=dist/plan.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' && npm run make-executable",
+    "watch": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' --watch & esbuild plan.ts --outfile=dist/plan.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' --watch",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.cjs",
     "dev": "concurrently \"npm run watch\" \"npm run inspect\"",
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "two-step-plan-mcp": "./dist/index.cjs"
+    "two-step-plan-mcp": "./dist/index.cjs",
+    "two-step-plan": "./dist/plan.cjs"
   },
   "files": [
     "dist"
