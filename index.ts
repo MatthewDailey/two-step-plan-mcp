@@ -37,11 +37,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "The task or project you need help planning",
             },
-            context: {
-              type: "string",
-              description:
-                "Additional context about existing codebase, constraints, or requirements",
-            },
           },
           required: ["task_description"],
         },
@@ -79,9 +74,23 @@ Be thorough and specific.`;
 
       console.error("Requesting initial plan from Claude...");
 
-      const { stdout: initialPlan } = await execAsync(
-        `claude -p '${initialPlanPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
-      );
+      const { stdout: initialPlan, stderr: initialPlanError } = await execAsync(
+        `unset ANTHROPIC_API_KEY && claude -p '${initialPlanPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
+      ).catch((err) => {
+        console.error("Error getting initial plan:", err);
+        return { stdout: "", stderr: err.message };
+      });
+
+      if (initialPlanError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error generating initial plan: ${initialPlanError}`,
+            },
+          ],
+        };
+      }
 
       // Save initial plan to file
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -112,9 +121,23 @@ Be constructive but critical. Focus on making the plan simpler, more robust, and
 
       console.error("Requesting critique and improved plan from Claude...");
 
-      const { stdout: improvedPlan } = await execAsync(
+      const { stdout: improvedPlan, stderr: improvedPlanError } = await execAsync(
         `claude -p '${critiquePrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
-      );
+      ).catch((err) => {
+        console.error("Error getting improved plan:", err);
+        return { stdout: "", stderr: err.message };
+      });
+
+      if (improvedPlanError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error generating improved plan: ${improvedPlanError}`,
+            },
+          ],
+        };
+      }
 
       // Save improved plan to file
       const improvedPlanPath = path.join(planDir, `improved_plan_${timestamp}.md`);
@@ -150,9 +173,23 @@ Example response format: /path/to/selected/plan.md`;
 
       console.error("Requesting final plan selection from Claude...");
 
-      const { stdout: selectedPlanPath } = await execAsync(
+      const { stdout: selectedPlanPath, stderr: selectionError } = await execAsync(
         `claude -p '${selectionPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
-      );
+      ).catch((err) => {
+        console.error("Error during plan selection:", err);
+        return { stdout: "", stderr: err.message };
+      });
+
+      if (selectionError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error during plan selection: ${selectionError}`,
+            },
+          ],
+        };
+      }
 
       return {
         content: [
@@ -165,11 +202,15 @@ Example response format: /path/to/selected/plan.md`;
     } catch (error) {
       console.error("Error in two-step plan tool:", error);
 
+      // Get any error details from the error object
+      const errorMessage =
+        error instanceof Error ? `${error.message}\n${(error as any).stderr || ""}` : String(error);
+
       return {
         content: [
           {
             type: "text",
-            text: `Error generating plan: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Error generating plan: ${errorMessage}`,
           },
         ],
       };
