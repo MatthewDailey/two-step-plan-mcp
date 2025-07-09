@@ -1,11 +1,17 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CreateMessageRequest,
+  CreateMessageResultSchema,
+  CallToolRequestSchema,
+  ListToolsRequestSchema
+} from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 
-const server = new McpServer(
+const server = new Server(
   {
     name: "two-step-plan",
     version: "0.2.0",
@@ -19,25 +25,37 @@ const server = new McpServer(
   }
 );
 
-// Response schema for sampling requests
-const CreateMessageResponseSchema = z.object({
-  role: z.string(),
-  content: z.object({
-    type: z.string(),
-    text: z.string(),
-  }),
-  model: z.string().optional(),
-  stopReason: z.string().optional(),
+// Define available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: "two_step_plan",
+        description: "Create a plan for a task, then have another Claude instance critique and improve it",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_description: { 
+              type: "string", 
+              description: "The task or project you need help planning" 
+            },
+            context: { 
+              type: "string", 
+              description: "Additional context about existing codebase, constraints, or requirements" 
+            }
+          },
+          required: ["task_description"]
+        }
+      }
+    ]
+  };
 });
 
-server.tool(
-  "two_step_plan",
-  "Create a plan for a task, then have another Claude instance critique and improve it",
-  {
-    task_description: z.string().describe("The task or project you need help planning"),
-    context: z.string().optional().describe("Additional context about existing codebase, constraints, or requirements"),
-  },
-  async ({ task_description, context }) => {
+// Tool handler
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "two_step_plan") {
+    const { task_description, context } = request.params.arguments;
+    
     console.error("Two-step plan tool", { task_description, context });
     
     try {
@@ -59,30 +77,33 @@ Be thorough and specific.`;
 
       console.error("Requesting initial plan from Claude...");
       
-      const initialPlanResponse = await server.request(
-        {
-          method: "sampling/createMessage",
-          params: {
-            messages: [
-              {
-                role: "user",
-                content: {
-                  type: "text",
-                  text: initialPlanPrompt,
-                },
+      const initialSamplingRequest: CreateMessageRequest = {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: initialPlanPrompt,
               },
-            ],
-            maxTokens: 2000,
-            temperature: 0.7,
-            modelPreferences: {
-              hints: [{ name: "claude-3-sonnet" }],
-              intelligencePriority: 0.8,
-              speedPriority: 0.5,
-              costPriority: 0.3,
             },
+          ],
+          maxTokens: 2000,
+          temperature: 0.7,
+          modelPreferences: {
+            hints: [{ name: "claude-3-sonnet" }],
+            intelligencePriority: 0.8,
+            speedPriority: 0.5,
+            costPriority: 0.3,
           },
+          includeContext: "thisServer",
         },
-        CreateMessageResponseSchema
+      };
+
+      const initialPlanResponse = await server.request(
+        initialSamplingRequest,
+        CreateMessageResultSchema
       );
 
       const initialPlan = initialPlanResponse.content.text;
@@ -116,30 +137,33 @@ Be constructive but critical. Focus on making the plan simpler, more robust, and
 
       console.error("Requesting critique and improved plan from Claude...");
       
-      const improvedPlanResponse = await server.request(
-        {
-          method: "sampling/createMessage",
-          params: {
-            messages: [
-              {
-                role: "user",
-                content: {
-                  type: "text",
-                  text: critiquePrompt,
-                },
+      const critiqueSamplingRequest: CreateMessageRequest = {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: critiquePrompt,
               },
-            ],
-            maxTokens: 2500,
-            temperature: 0.7,
-            modelPreferences: {
-              hints: [{ name: "claude-3-sonnet" }],
-              intelligencePriority: 0.9, // Higher intelligence for critique
-              speedPriority: 0.4,
-              costPriority: 0.2,
             },
+          ],
+          maxTokens: 2500,
+          temperature: 0.7,
+          modelPreferences: {
+            hints: [{ name: "claude-3-sonnet" }],
+            intelligencePriority: 0.9, // Higher intelligence for critique
+            speedPriority: 0.4,
+            costPriority: 0.2,
           },
+          includeContext: "thisServer",
         },
-        CreateMessageResponseSchema
+      };
+
+      const improvedPlanResponse = await server.request(
+        critiqueSamplingRequest,
+        CreateMessageResultSchema
       );
 
       const improvedPlan = improvedPlanResponse.content.text;
@@ -200,7 +224,9 @@ Plans saved to:
       };
     }
   }
-);
+  
+  throw new Error(`Unknown tool: ${request.params.name}`);
+});
 
 process.on("SIGINT", async () => {
   await server.close();
