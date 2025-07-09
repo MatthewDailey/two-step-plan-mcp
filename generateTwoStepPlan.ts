@@ -128,7 +128,6 @@ Please review this plan in detail and call out anything that appears to be overe
     logger
   );
 
-  logger("Improved plan generated successfully, preparing to save...");
   const improvedPlanPath = path.join(planDir, `improved_plan_${timestamp}.md`);
   await fs.writeFile(improvedPlanPath, `# Improved Plan\n\n${improvedPlan}`);
 
@@ -150,7 +149,7 @@ ${initialPlanPath}
 ${improvedPlanPath}
 --------------------
 
-Please read both plan files and determine which one is better.`,
+Please read both plan files and determine which one is better. Move the the better plan to a markdown file named after the task including the timestamp ${timestamp} in the current directory.`,
     "Failed during plan selection",
     logger
   );
