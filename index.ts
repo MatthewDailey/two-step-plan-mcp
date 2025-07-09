@@ -1,12 +1,12 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { generateTwoStepPlan } from "./plan.js";
+import { generateTwoStepPlan } from "./generateTwoStepPlan.js";
 
 const server = new Server(
   {
     name: "two-step-plan",
-    version: "0.2.0",
+    version: "0.2.1",
   },
   {
     capabilities: {
@@ -38,17 +38,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-// Tool handler
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "two_step_plan") {
     console.error("Starting two_step_plan tool execution...");
-    const { task_description, context } = request.params.arguments as {
+    const { task_description } = request.params.arguments as {
       task_description: string;
-      context: string;
     };
 
     try {
-      const selectedPlanPath = await generateTwoStepPlan(task_description, context, console.error);
+      const selectedPlanPath = await generateTwoStepPlan(task_description, console.error);
 
       return {
         content: [

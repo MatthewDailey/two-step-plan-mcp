@@ -1,6 +1,6 @@
 {
   "name": "two-step-plan",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server that creates and critiques plans using two-step Claude evaluation",
   "type": "module",
   "scripts": {
@@ -12,8 +12,8 @@
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "two-step-plan-mcp": "./dist/index.cjs",
-    "two-step-plan": "./dist/plan.cjs"
+    "two-step-plan": "./dist/index.cjs",
+    "claude-plan": "./dist/plan.cjs"
   },
   "files": [
     "dist"

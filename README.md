@@ -19,7 +19,7 @@ This MCP server provides a tool that:
   "mcpServers": {
     "two-step-plan": {
       "command": "npx",
-      "args": ["-y", "two-step-plan"]
+      "args": ["-y", "two-step-plan-mcp"]
     }
   }
 }
