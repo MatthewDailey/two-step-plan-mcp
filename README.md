@@ -1,12 +1,27 @@
-# MCP Starter Server
+# Two-Step Plan MCP Server
 
-A minimal [ModelContextProtocol](https://modelcontextprotocol.io) server template for building AI assistant tools. This starter provides a basic structure for creating MCP tools that can be used with AI assistants like Claude.
+A [ModelContextProtocol](https://modelcontextprotocol.io) server that implements a two-step planning process inspired by the observation that having Claude critique its own plans often leads to better, simpler solutions.
+
+## How it Works
+
+This MCP server provides a tool that:
+1. Uses Claude to create an initial detailed plan for a given task
+2. Has a second Claude instance critique the plan and provide an improved version
+3. Saves both plans to files and returns them to the user
+
+The approach is based on the principle that "NewClaude generally is of the opinion that OldClaude was overengineering" - leading to simpler, more robust plans.
 
 ## Features
 
-- Simple "hello world" tool example
-- TypeScript + esbuild setup
-- Development tools preconfigured
+- Two-step planning process using MCP sampling
+- Automatic file saving of plans with timestamps
+- Support for additional context about existing codebases
+- Error handling for clients without sampling support
+
+## Requirements
+
+- Node.js v18 or higher
+- An MCP client with sampling support (e.g., Claude Desktop with latest version)
 
 ## Setup to build and run with Claude
 
@@ -14,7 +29,7 @@ A minimal [ModelContextProtocol](https://modelcontextprotocol.io) server templat
 
 2. Clone the repo, install dependencies and build:
 
-```
+```bash
 npm install
 npm run build
 ```
@@ -24,7 +39,7 @@ npm run build
 ```bash
 echo '{
   "mcpServers": {
-    "mcp-starter": {
+    "two-step-plan": {
       "command": "node",
       "args": ["'$PWD'/dist/index.cjs"]
     }
@@ -36,73 +51,99 @@ This should result in an entry in your `claude_desktop_config.json` like:
 
 ```json
 "mcpServers": {
-  "mcp-starter": {
+  "two-step-plan": {
     "command": "node",
-    "args": ["/Users/matt/code/mcp-starter/dist/index.cjs"]
+    "args": ["/Users/yourname/code/two-step-plan/dist/index.cjs"]
   }
 }
 ```
 
-If you have existing MCP servers, add the `mcp-starter` block to your existing config. It's an important detail that the `args` is the path to `<path_to_repo_on_your_machine>/mcp-starter/dist/index.cjs`.
+If you have existing MCP servers, add the `two-step-plan` block to your existing config. It's an important detail that the `args` is the path to `<path_to_repo_on_your_machine>/two-step-plan/dist/index.cjs`.
 
 4. Restart Claude Desktop.
 
 5. Look for the hammer icon with the number of available tools in Claude's interface to confirm the server is running.
 
-6. If this is all working, you should be able to develop your MCP server using `npm run dev` and test it in Claude. You'll need to restart Claude each time to restart the MCP server.
+## Using the Tool
 
-## Developing with Inspector
+Once configured, you can use the `two_step_plan` tool in Claude Desktop:
 
-For development and debugging purposes, you can use the MCP Inspector tool. The Inspector provides a visual interface for testing and monitoring MCP server interactions.
-
-Visit the [Inspector documentation](https://modelcontextprotocol.io/docs/tools/inspector) for detailed setup instructions.
-
-To test locally with Inspector:
 ```
-npm run inspect
+Use the two_step_plan tool to help me design a REST API for a task management system
 ```
 
-To build on file changes run:
+The tool accepts two parameters:
+- `task_description` (required): The task or project you need help planning
+- `context` (optional): Additional context about existing codebase, constraints, or requirements
+
+## Output
+
+The tool will:
+1. Generate an initial plan
+2. Have another Claude instance critique and improve it
+3. Save both plans to timestamped files in your system's temp directory under `two-step-plan/plans/`
+4. Return both plans in the response for immediate viewing
+
+## Development
+
+### Run in development mode with auto-reload and MCP inspector:
+
+```bash
+npm run dev
 ```
+
+### Build the project:
+
+```bash
+npm run build
+```
+
+### Watch for changes and rebuild:
+
+```bash
 npm run watch
 ```
 
-Or run both the watcher and inspector:
-```
-npm run dev
+### Inspect the MCP server:
+
+```bash
+npm run inspect
 ```
 
 ## Publishing
 
-Once you're ready to distribute your server, it's simple! 
+To publish to npm:
 
-1. Set up an [NPM](https://www.npmjs.com/) account.
+1. Update the version in `package.json`
+2. Run `npm publish`
 
-2. Run `npm publish`. This will publish a package using the project name in `package.json`
-
-3. Once published, others can install the server with a config entry like:
-
+Users can then install globally:
+```bash
+npm install -g two-step-plan
 ```
-"mcpServers": {
-  "<your-package-name>": {
-    "command": "npx",
-    "args": ["<your-package-name>"]
+
+And configure Claude Desktop to use the globally installed version:
+```json
+{
+  "mcpServers": {
+    "two-step-plan": {
+      "command": "npx",
+      "args": ["-y", "two-step-plan"]
+    }
   }
 }
 ```
 
-## Available Tools
+## How to create your own MCP tool
 
-The server provides:
+This project is built from the [mcp-starter](https://github.com/claude-ai/mcp-starter) template. To create your own MCP tool:
 
-- `hello_tool`: A simple example tool that takes a name parameter and returns a greeting
+1. Clone the starter template
+2. Update `index.ts` with your tool implementation
+3. Use `server.tool()` to register new tools
+4. Enable additional capabilities like `sampling` if needed
+5. Follow the setup instructions above to test with Claude Desktop
 
-## Creating New Tools
+## Contributing
 
-To add new tools:
-
-1. Define the tool schema in `index.ts`
-2. Add it to the tools array in the `ListToolsRequestSchema` handler
-3. Add the implementation in the `CallToolRequestSchema` handler
-
-See the `hello_tool` implementation as an example.
+This project demonstrates the use of MCP's sampling capability to create multi-agent workflows. Feel free to fork and extend it with your own planning strategies!

@@ -1,7 +1,7 @@
 {
-  "name": "mcp-starter",
+  "name": "two-step-plan",
   "version": "0.2.0",
-  "description": "ModelContextProtocol starter server",
+  "description": "MCP server that creates and critiques plans using two-step Claude evaluation",
   "type": "module",
   "scripts": {
     "make-executable": "node -e \"fs.chmodSync('dist/index.cjs', '755');\" --require fs",
@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "mcp-starter": "./dist/index.cjs"
+    "two-step-plan": "./dist/index.cjs"
   },
   "files": [
     "dist"
