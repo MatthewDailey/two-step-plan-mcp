@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "two-step-plan": "./dist/index.cjs"
+    "two-step-plan-mcp": "./dist/index.cjs"
   },
   "files": [
     "dist"
