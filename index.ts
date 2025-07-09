@@ -6,7 +6,7 @@ import { generateTwoStepPlan } from "./generateTwoStepPlan.js";
 const server = new Server(
   {
     name: "two-step-plan",
-    version: "0.2.3",
+    version: "0.3.0",
   },
   {
     capabilities: {
