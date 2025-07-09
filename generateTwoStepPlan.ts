@@ -17,25 +17,19 @@ export async function generateTwoStepPlan(taskDescription: string, logger: Logge
   try {
     logger("Step 1: Preparing initial plan prompt...");
     // Step 1: Create initial plan
-    const initialPlanPrompt = `You are helping to create a detailed implementation plan for the following task:
+    const initialPlanPrompt = `Write a plan for the following task:
 
-Task: ${taskDescription}
+---- TASK ----
+${taskDescription}
+---- END TASK ----
 
-Please create a comprehensive, well-structured plan in markdown format. Include:
-- Clear objectives
-- Step-by-step implementation details
-- Potential challenges and solutions
-- Testing considerations
-- Any relevant technical decisions
-
-No need for time estimates.
-
-Be thorough and specific.`;
+No need for time estimates.`;
 
     logger("Requesting initial plan from Claude...");
-
+    const initalPlanCommand = `unset ANTHROPIC_API_KEY && claude -p '${initialPlanPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`;
+    logger("\x1b[32m" + initalPlanCommand + "\x1b[0m");
     const { stdout: initialPlan, stderr: initialPlanError } = await execAsync(
-      `unset ANTHROPIC_API_KEY && claude -p '${initialPlanPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
+      initalPlanCommand
     ).catch((err) => {
       logger("Error getting initial plan:", err);
       return { stdout: "", stderr: err.message };
@@ -60,23 +54,22 @@ Be thorough and specific.`;
     // Step 2: Have another Claude critique the plan
     const critiquePrompt = `A previous agent created the following plan for this task:
 
-Task: ${taskDescription}
+---- TASK ----
+${taskDescription}
+---- END TASK ----
 
-PLAN:
+---- PLAN ----
 ${initialPlan}
+---- END PLAN ----
 
-Please review this plan in detail and:
-1. Call out anything that appears to be overengineering needlessly for what should be a simple, robust system
-2. Identify any missing considerations or steps
-3. Suggest improvements for clarity and practicality
-4. Provide a revised, improved version of the plan that addresses these issues
-
-Be constructive but critical. Focus on making the plan simpler, more robust, and easier to implement.`;
+Please review this plan in detail and call out anything that appears to be overengineering needlessly for what should be a simple, robust system.`;
 
     logger("Requesting critique and improved plan from Claude...");
 
+    const improvedPlanCommand = `unset ANTHROPIC_API_KEY && claude -p '${critiquePrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`;
+    logger("\x1b[32m" + improvedPlanCommand + "\x1b[0m");
     const { stdout: improvedPlan, stderr: improvedPlanError } = await execAsync(
-      `claude -p '${critiquePrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
+      improvedPlanCommand
     ).catch((err) => {
       logger("Error getting improved plan:", err);
       return { stdout: "", stderr: err.message };
@@ -97,7 +90,9 @@ Be constructive but critical. Focus on making the plan simpler, more robust, and
     // Step 3: Have Claude choose the better plan using claude -p and file operations
     const selectionPrompt = `You need to choose the better plan between these two files for the following task:
 
-Task: ${taskDescription}
+---- TASK ----
+${taskDescription}
+---- END TASK ----
 
 The two plans are saved in these files:
 ------ Plan A ------
@@ -106,26 +101,14 @@ ${initialPlanPath}
 ${improvedPlanPath}
 --------------------
 
-Please:
-1. Read both plan files
-2. Analyze which plan is better based on:
-   - More practical and implementable
-   - Better balanced between thoroughness and simplicity
-   - More likely to succeed given the constraints
-3. Delete the file containing the inferior plan
-4. Respond with only the file path of the selected plan
-
-Instructions for file operations:
-- Use 'cat' to read the files
-- Use 'rm' to delete the non-selected file
-- Return only the path to the remaining file
-
-Example response format: /path/to/selected/plan.md`;
+Please read both plan files and determine which one is better.`;
 
     logger("Requesting final plan selection from Claude...");
 
+    const selectionCommand = `unset ANTHROPIC_API_KEY && claude -p '${selectionPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`;
+    logger("\x1b[32m" + selectionCommand + "\x1b[0m");
     const { stdout: selectedPlanPath, stderr: selectionError } = await execAsync(
-      `claude -p '${selectionPrompt.replace(/'/g, "'\"'\"'")}' --dangerously-skip-permissions`
+      selectionCommand
     ).catch((err) => {
       logger("Error during plan selection:", err);
       return { stdout: "", stderr: err.message };
