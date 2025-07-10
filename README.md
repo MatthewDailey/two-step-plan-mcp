@@ -11,10 +11,6 @@ This MCP server provides a tool that:
 3. Uses a third Claude CLI instance to read both plans, choose the better one, and delete the other
 4. Returns the file path to the selected plan
 
-## WARNING
-
-The MCP server is long running and questionably works right now. 
-
 
 ## Install MCP
 
