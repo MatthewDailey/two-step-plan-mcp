@@ -83,9 +83,19 @@ export async function execClaudePrompt(
   });
 }
 
-export async function generateTwoStepPlan(taskDescription: string, logger: Logger = console.error) {
+type ProgressCallback = (progress: number, total: number, message?: string) => Promise<void>;
+
+export async function generateTwoStepPlan(
+  taskDescription: string, 
+  logger: Logger = console.error,
+  progressCallback?: ProgressCallback
+) {
   // Step 1: Create initial plan
   logger("Step 1: Preparing initial plan prompt...");
+  
+  if (progressCallback) {
+    await progressCallback(0, 3, "Starting initial plan generation...");
+  }
 
   logger("Requesting initial plan from Claude...");
   const initialPlan = await execClaudePrompt(
@@ -101,6 +111,10 @@ No need for time estimates.`,
   );
 
   logger("Initial plan generated successfully, preparing to save...");
+  
+  if (progressCallback) {
+    await progressCallback(1, 3, "Initial plan completed, saving...");
+  }
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const planDir = path.join(os.tmpdir(), "two-step-plan", "plans");
   await fs.mkdir(planDir, { recursive: true });
@@ -112,6 +126,10 @@ No need for time estimates.`,
 
   // Step 2: Have another Claude critique the plan
   logger("Step 2: Requesting critique of initial plan...");
+  
+  if (progressCallback) {
+    await progressCallback(1, 3, "Generating improved plan...");
+  }
   const improvedPlan = await execClaudePrompt(
     `A previous agent created the following plan for this task:
 
@@ -132,6 +150,10 @@ Please review this plan in detail and call out anything that appears to be overe
   await fs.writeFile(improvedPlanPath, `# Improved Plan\n\n${improvedPlan}`);
 
   logger(`Improved plan saved successfully to: ${improvedPlanPath}`);
+  
+  if (progressCallback) {
+    await progressCallback(2, 3, "Improved plan completed, selecting best plan...");
+  }
 
   // Step 3: Have Claude choose the better plan using claude -p and file operations
   logger("Step 3: Requesting final plan selection...");
@@ -155,5 +177,10 @@ Please read both plan files and determine which one is better. Move the the bett
   );
 
   logger("Plan selection completed successfully");
+  
+  if (progressCallback) {
+    await progressCallback(3, 3, "Plan selection completed");
+  }
+  
   return selectedPlanPath.trim();
 }
