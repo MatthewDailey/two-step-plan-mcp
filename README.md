@@ -41,12 +41,12 @@ npm install -g two-step-plan
 
 2. Run the tool:
 ```bash
-claude-plan "Your task description here"
+plan "Your task description here"
 ```
 
 For example:
 ```bash
-claude-plan "Design a REST API for a task management system"
+plan "Design a REST API for a task management system"
 ```
 
 ## Development
